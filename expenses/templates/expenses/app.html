@@ -1,0 +1,199 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1f3a5f">
+  <title>Expense Management</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <script src="{% static 'vendor/chart-4.4.1.umd.min.js' %}" defer></script>
+  <script src="{% static 'js/app.js' %}" defer></script>
+</head>
+<body>
+{% csrf_token %}
+<div class="shell">
+  <aside class="sidebar" aria-label="Main navigation">
+    <div class="brand"><span class="brand-mark">₹</span><span>Expenses</span></div>
+    <nav>
+      <a href="#dashboard" data-view="dashboard" class="nav-link"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"/></svg><span>Dashboard</span></a>
+      <a href="#expenses" data-view="expenses" class="nav-link"><svg viewBox="0 0 24 24"><path d="M4 4h16v2H4zm0 5h16v2H4zm0 5h10v2H4zm0 5h10v2H4z"/></svg><span>Expenses</span></a>
+      <a href="#approvals" data-view="approvals" class="nav-link"><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg><span>Approvals</span><b class="badge" id="approvalsBadge" hidden></b></a>
+      <a href="#import" data-view="import" class="nav-link" data-requires="can_import"><svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5zm7-18-5.5 5.5 1.4 1.4L11 5.8V16h2V5.8l3.1 3.1 1.4-1.4z"/></svg><span>Import</span></a>
+      <a href="#reports" data-view="reports" class="nav-link"><svg viewBox="0 0 24 24"><path d="M5 9h3v11H5zm5.5-5h3v16h-3zM16 13h3v7h-3z"/></svg><span>Reports</span></a>
+      <a href="#audit" data-view="audit" class="nav-link" data-requires="can_view_audit"><svg viewBox="0 0 24 24"><path d="M12 1 3 5v6c0 5.6 3.8 10.7 9 12 5.2-1.3 9-6.4 9-12V5z"/></svg><span>Audit</span></a>
+    </nav>
+    <div class="sidebar-foot">
+      <a href="/admin/" class="nav-link small" data-requires="is_admin">Administration</a>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 id="viewTitle">Dashboard</h1>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" id="newExpenseBtn" data-requires="can_create" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg><span>New expense</span>
+        </button>
+        <button class="icon-btn" id="notifBtn" aria-label="Notifications">
+          <svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2m6-6V11c0-3.1-1.6-5.6-4.5-6.3V4a1.5 1.5 0 0 0-3 0v.7C7.6 5.4 6 7.9 6 11v5l-2 2v1h16v-1z"/></svg>
+          <b class="dot" id="notifDot" hidden></b>
+        </button>
+        <div class="user-menu">
+          <button class="user-chip" id="userChip" aria-haspopup="true"><span class="avatar" id="avatar">?</span><span class="user-name" id="userName"></span></button>
+          <div class="menu" id="userMenu" hidden>
+            <div class="menu-head"><strong id="menuName"></strong><span class="muted small" id="menuRoles"></span><span class="muted small" id="menuScope"></span></div>
+            <button class="menu-item" id="themeToggle">Toggle dark mode</button>
+            <form method="post" action="/logout/">{% csrf_token %}<button class="menu-item" type="submit">Sign out</button></form>
+          </div>
+        </div>
+      </div>
+      <div class="notif-panel" id="notifPanel" hidden></div>
+    </header>
+
+    <!-- Shared filter bar (FR-DASH-001) -->
+    <section class="filters" id="filters" aria-label="Filters">
+      <div class="filter-row">
+        <label class="f"><span>From</span><input type="date" name="date_from"></label>
+        <label class="f"><span>To</span><input type="date" name="date_to"></label>
+        <label class="f"><span>Entity</span><select name="entity"><option value="">All</option></select></label>
+        <label class="f"><span>Category</span><select name="category"><option value="">All</option></select></label>
+        <label class="f"><span>Records included</span><select name="status_scope"></select></label>
+        <button class="btn btn-ghost" id="moreFilters" aria-expanded="false">More filters</button>
+        <button class="btn btn-ghost" id="clearFilters">Clear</button>
+      </div>
+      <div class="filter-row more" id="moreFilterRow" hidden>
+        <label class="f"><span>Department</span><select name="department"><option value="">All</option></select></label>
+        <label class="f"><span>Project / cost centre</span><select name="project"><option value="">All</option></select></label>
+        <label class="f"><span>Vendor</span><select name="vendor"><option value="">All</option></select></label>
+        <label class="f"><span>Employee</span><select name="employee"><option value="">All</option></select></label>
+        <label class="f"><span>Status</span><select name="status"><option value="">Any (use “Records included”)</option></select></label>
+        <label class="f"><span>ITC status</span><select name="itc_status"><option value="">Any</option></select></label>
+        <label class="f"><span>Search</span><input type="search" name="search" placeholder="Name, ref, invoice, vendor"></label>
+      </div>
+      <p class="scope-note" id="scopeNote"></p>
+    </section>
+
+    <!-- Dashboard -->
+    <section class="view" id="view-dashboard" hidden>
+      <div class="kpis" id="kpis"></div>
+      <div class="sync-strip" id="syncStrip" hidden></div>
+      <div class="grid-2">
+        <figure class="card chart-card"><figcaption><h2>Gross spend by month</h2><button class="link-btn" data-table="by_month">Table</button></figcaption><div class="chart-box"><canvas id="chMonth" aria-label="Gross spend by month"></canvas></div></figure>
+        <figure class="card chart-card"><figcaption><h2>By category</h2><button class="link-btn" data-table="by_category">Table</button></figcaption><div class="chart-box"><canvas id="chCategory" aria-label="Gross spend by category"></canvas></div></figure>
+        <figure class="card chart-card"><figcaption><h2>By paying entity <span class="muted small">(external spend, each invoice once)</span></h2><button class="link-btn" data-table="by_entity">Table</button></figcaption><div class="chart-box short"><canvas id="chEntity"></canvas></div></figure>
+        <figure class="card chart-card"><figcaption><h2>Allocated cost by entity <span class="muted small">(after intercompany allocation)</span></h2><button class="link-btn" data-table="by_allocated_entity">Table</button></figcaption><div class="chart-box short"><canvas id="chAlloc"></canvas></div></figure>
+        <figure class="card chart-card"><figcaption><h2>Top vendors</h2><button class="link-btn" data-table="by_vendor">Table</button></figcaption><div class="chart-box"><canvas id="chVendor"></canvas></div></figure>
+        <figure class="card chart-card"><figcaption><h2>Workflow status <span class="muted small">(all records)</span></h2><button class="link-btn" data-table="by_status">Table</button></figcaption><div class="chart-box"><canvas id="chStatus"></canvas></div></figure>
+        <figure class="card chart-card"><figcaption><h2>Top employees</h2><button class="link-btn" data-table="by_employee">Table</button></figcaption><div class="chart-box"><canvas id="chEmployee"></canvas></div></figure>
+        <figure class="card chart-card"><figcaption><h2>By project / cost centre</h2><button class="link-btn" data-table="by_project">Table</button></figcaption><div class="chart-box"><canvas id="chProject"></canvas></div></figure>
+      </div>
+    </section>
+
+    <!-- Expenses -->
+    <section class="view" id="view-expenses" hidden>
+      <div class="toolbar">
+        <div class="export-group" role="group" aria-label="Export">
+          <span class="muted small">Export filtered:</span>
+          <button class="btn btn-ghost" data-export="xlsx">Excel</button>
+          <button class="btn btn-ghost" data-export="csv">CSV</button>
+          <button class="btn btn-ghost" data-export="pdf">PDF</button>
+        </div>
+        <label class="f inline"><span>Sort</span>
+          <select id="ordering">
+            <option value="-expense_date">Newest first</option><option value="expense_date">Oldest first</option>
+            <option value="-gross_amount">Amount high → low</option><option value="gross_amount">Amount low → high</option>
+            <option value="status">Status</option>
+          </select>
+        </label>
+      </div>
+      <div class="card table-card"><div class="table-wrap"><table class="data" id="expenseTable">
+        <thead><tr><th>Ref</th><th>Date</th><th>Expense</th><th>Entity</th><th>Category</th><th>Vendor</th><th class="num">Gross</th><th>Status</th><th>Submitter</th><th>Notes</th></tr></thead>
+        <tbody></tbody></table></div>
+        <div class="pager" id="pager"></div>
+      </div>
+    </section>
+
+    <!-- Approvals -->
+    <section class="view" id="view-approvals" hidden>
+      <div class="tabs" role="tablist">
+        <button role="tab" class="tab active" data-queue="manager">Manager review</button>
+        <button role="tab" class="tab" data-queue="finance">Finance verification</button>
+        <button role="tab" class="tab" data-queue="mine">My returned / drafts</button>
+      </div>
+      <div class="card table-card"><div class="table-wrap"><table class="data" id="queueTable">
+        <thead><tr><th>Ref</th><th>Date</th><th>Expense</th><th>Entity</th><th class="num">Gross</th><th>Status</th><th>Submitter</th><th>Flags</th></tr></thead>
+        <tbody></tbody></table></div></div>
+    </section>
+
+    <!-- Import -->
+    <section class="view" id="view-import" hidden>
+      <div class="grid-2">
+        <div class="card pad">
+          <h2>Import expenses from Excel or CSV</h2>
+          <ol class="steps">
+            <li>Download the <a href="/api/imports-template.xlsx">Excel template</a> (includes a field guide).</li>
+            <li>Fill one expense per row. To <b>update</b> existing expenses, keep the <code>ExpenseRef</code> or <code>ExternalRecordID</code> column (an Excel export already has it).</li>
+            <li>Upload, check the preview, then commit.</li>
+          </ol>
+          <form id="importForm" class="stack">
+            <label class="drop" id="drop"><input type="file" name="file" accept=".xlsx,.csv" required><span id="dropLabel">Choose a .xlsx or .csv file, or drop it here</span></label>
+            <label class="check"><input type="checkbox" name="reprocess" value="1"> Reprocess even if this exact file was imported before</label>
+            <button class="btn btn-primary" type="submit">Upload and preview</button>
+          </form>
+        </div>
+        <div class="card pad">
+          <h2>Google Sheets sync</h2>
+          <p class="muted">Automatic synchronisation with Google Sheets is <b>pending implementation</b>. Until then, download the sheet as .xlsx or .csv and import it here.</p>
+          <button class="btn" disabled>Connect Google Sheets (coming soon)</button>
+        </div>
+      </div>
+      <div class="card pad" id="previewCard" hidden></div>
+      <div class="card table-card">
+        <div class="card-head"><h2>Import history</h2></div>
+        <div class="table-wrap"><table class="data" id="runTable"><thead><tr><th>Started</th><th>File</th><th>By</th><th>Status</th><th>Rows</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- Reports -->
+    <section class="view" id="view-reports" hidden>
+      <div class="grid-3">
+        <div class="card pad report-tile"><h2>Expense register</h2><p class="muted">All filtered records with GST columns and totals.</p>
+          <div class="row-gap"><button class="btn" data-export="xlsx">Excel</button><button class="btn" data-export="pdf">PDF</button><button class="btn" data-export="csv">CSV</button></div></div>
+        <div class="card pad report-tile"><h2>Intercompany allocations</h2><p class="muted">Paying vs beneficiary entity, allocation and recharge status.</p>
+          <div class="row-gap"><button class="btn" id="icExport">CSV</button></div></div>
+        <div class="card pad report-tile"><h2>Import template</h2><p class="muted">Versioned Excel template and field guide.</p>
+          <div class="row-gap"><a class="btn" href="/api/imports-template.xlsx">Download</a></div></div>
+      </div>
+      <div class="card table-card">
+        <div class="card-head"><h2>GST summary <span class="muted small">by entity, period, tax type and ITC status</span></h2></div>
+        <p class="muted small pad-x">Recorded GST is what invoices show. Only “Verified eligible” amounts are counted as ITC.</p>
+        <div class="table-wrap"><table class="data" id="gstTable"><thead><tr><th>Entity</th><th>Period</th><th>GST type</th><th>ITC status</th><th class="num">Records</th><th class="num">Taxable</th><th class="num">CGST</th><th class="num">SGST/UTGST</th><th class="num">IGST</th><th class="num">Cess</th><th class="num">Verified ITC</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- Audit -->
+    <section class="view" id="view-audit" hidden>
+      <div class="card table-card"><div class="table-wrap"><table class="data" id="auditTable"><thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Record</th><th>Result</th><th>Details</th></tr></thead><tbody></tbody></table></div></div>
+    </section>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Main navigation (mobile)">
+    <a href="#dashboard" data-view="dashboard">Dashboard</a>
+    <a href="#expenses" data-view="expenses">Expenses</a>
+    <a href="#approvals" data-view="approvals">Approvals</a>
+    <a href="#reports" data-view="reports">Reports</a>
+  </nav>
+</div>
+
+<!-- Expense drawer: detail / edit / create -->
+<div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+<aside class="drawer" id="drawer" aria-modal="true" role="dialog" aria-labelledby="drawerTitle" hidden>
+  <header class="drawer-head"><h2 id="drawerTitle">Expense</h2><button class="icon-btn" id="drawerClose" aria-label="Close">✕</button></header>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<dialog id="tableDialog"><form method="dialog"><header class="drawer-head"><h2 id="tableDialogTitle"></h2><button class="icon-btn" aria-label="Close">✕</button></header><div class="table-wrap" id="tableDialogBody"></div></form></dialog>
+<dialog id="promptDialog"><form method="dialog" class="stack pad"><h2 id="promptTitle"></h2><label class="field"><span id="promptLabel">Comment</span><textarea id="promptText" rows="3"></textarea></label><div class="row-gap end"><button class="btn btn-ghost" value="cancel">Cancel</button><button class="btn btn-primary" value="ok" id="promptOk">Confirm</button></div></form></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
