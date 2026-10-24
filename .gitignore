@@ -5,3 +5,7 @@ db.sqlite3
 private_media/
 staticfiles/
 .env
+db_backup*.sqlite3
+expenses_backup*.json
+check_backup.py
+.env
