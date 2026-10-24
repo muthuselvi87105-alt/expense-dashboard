@@ -29,8 +29,10 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    'https://violet-toes-crash.loca.lt',
+    'expense-dashboard-oim8.onrender.com',
+    'violet-toes-crash.loca.lt',
 ]
+
 
 # Application definition
 
